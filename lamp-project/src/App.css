@@ -40,3 +40,26 @@
 .read-the-docs {
   color: #888;
 }
+
+.cord-bounce {
+  animation: bounce 0.5s;
+}
+
+@keyframes bounce {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  30% {
+    transform: translate(0px, -17px);
+  }
+  50% {
+    transform: translate(0px, 1px);
+  }
+  70% {
+    transform: translate(0px, -3px);
+  }
+  100% {
+    transform: translate(0px, 0px);
+  }
+}
+

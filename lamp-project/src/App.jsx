@@ -5,80 +5,141 @@ import LampIconOff from "./assets/lampOff.svg";
 
 function App() {
   const [isLampOn, setIsLampOn] = useState(false);
+  const initialCordLength = 120;
+  const [cordPosition, setCordPosition] = useState(initialCordLength);
   const cordRef = useRef(null);
-  const coreRef = useRef(null); // Lägg till en ref för "core"
+  const pathRef = useRef(null);
 
   useEffect(() => {
-    const body = document.querySelector("body");
+    const body = document.body;
     isLampOn
       ? body.classList.add("bg-gray-700")
       : body.classList.remove("bg-gray-700");
   }, [isLampOn]);
 
   const toggleLamp = () => {
-    setIsLampOn(!isLampOn);
+    setIsLampOn((prevState) => !prevState);
   };
 
   const startDrag = (e) => {
     e.preventDefault();
-
-    const startX = e.clientX;
-    const startY = e.clientY;
-
-    cordRef.current.startX = startX;
-    cordRef.current.startY = startY;
-
+    cordRef.current.startY = e.clientY;
     document.addEventListener("mousemove", onDrag);
     document.addEventListener("mouseup", stopDrag);
   };
 
   const onDrag = (e) => {
-    const newX = Math.min(0, Math.max(0, e.clientX - cordRef.current.startX));
     const newY = Math.min(
-      50,
-      Math.max(-50, e.clientY - cordRef.current.startY)
+      initialCordLength + 35,
+      initialCordLength + (e.clientY - cordRef.current.startY)
     );
+    const clampedY = Math.max(newY, initialCordLength);
+    setCordPosition(clampedY);
+    cordRef.current.style.transform = `translate(0px, ${
+      clampedY - initialCordLength
+    }px)`;
+  };
 
-    // Applicera den nya positionen på sladden och core
-    cordRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
-    coreRef.current.style.transform = `translate(${newX * 1}px, ${newY * 1}px)`; // Modifiera detta värde beroende på hur du vill att core ska följa med
+  const animateCordSway = () => {
+    // Funktion för att animera snörets gungning
+    let startTime = Date.now();
+    let duration = 300;
+
+    const animate = () => {
+      let timePassed = Date.now() - startTime;
+      let progress = timePassed / duration;
+      if (progress > 1) progress = 1;
+
+      let sway = Math.sin(progress * Math.PI) * 30; // Beräknar gungningens förskjutning
+      let secondSway = Math.sin(progress * Math.PI) * -30;
+      let controlPoint1X = 100 + sway;
+      let controlPoint1Y = 120 + initialCordLength * 0.3;
+      let controlPoint2X = 100 + secondSway;
+      let controlPoint2Y = 120 + initialCordLength * 0.6;
+      let endPointY = 120 + initialCordLength;
+
+      if (pathRef.current) {
+        pathRef.current.setAttribute(
+          // Uppdaterar SVG-path för att visa gungningen
+          "d",
+          `M100,120 C${controlPoint1X},${controlPoint1Y} ${controlPoint2X},${controlPoint2Y} 100,${endPointY}`
+        );
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(animate); // Fortsätter animationen om den inte är klar
+      } else {
+        if (pathRef.current) {
+          pathRef.current.setAttribute(
+            // Återställer path till dess startposition när animationen är klar
+            "d",
+            `M100,120 C100,${120 + initialCordLength * 0.3} 100,${
+              120 + initialCordLength * 0.6
+            } 100,${endPointY}`
+          );
+        }
+      }
+    };
+
+    requestAnimationFrame(animate); // Startar animationsloopen
   };
 
   const stopDrag = () => {
     document.removeEventListener("mousemove", onDrag);
     document.removeEventListener("mouseup", stopDrag);
+    const transformY = parseFloat(
+      cordRef.current.style.transform
+        .replace("translate(0px, ", "")
+        .replace("px)", "")
+    );
 
-    const transformValues = cordRef.current.style.transform
-      .replace("translate(", "")
-      .replace("px)", "")
-      .split(", ");
-    const transformY = parseFloat(transformValues[1]);
+    if (transformY >= 1) {
+      cordRef.current.classList.add("cord-bounce");
+      cordRef.current.style.transform = `translate(0px, ${-transformY}px)`;
+      animateCordSway(); // Startar gungningsanimationen
 
-    if (transformY >= 30) {
-      toggleLamp();
+      setTimeout(() => {
+        // Återställer snöret till dess startposition efter en viss tid
+        setCordPosition(initialCordLength);
+        cordRef.current.classList.remove("cord-bounce");
+        cordRef.current.style.transform = "";
+      }, 500);
     }
 
-    cordRef.current.style.transform = "";
-    coreRef.current.style.transform = ""; // Återställ även core position
+    if (transformY >= 25) {
+      toggleLamp();
+    }
   };
 
   return (
     <div className="flex flex-col items-center">
       <img
         src={isLampOn ? LampIconOn : LampIconOff}
-        className="w-64 h-auto mx-auto z-50"
+        className="w-64 h-auto mx-auto"
         alt="Lamp"
       />
-
-      <div
-        ref={coreRef}
-        id="core"
-        className="border-2 border-black border-dotted rounded-full h-40 -mt-20"
-      ></div>
+      <svg
+        width="200"
+        height="200"
+        className="absolute left-1/2 transform mt-28 -translate-x-1/2 z-10"
+        style={{ overflow: "visible" }}
+      >
+        <path
+          ref={pathRef}
+          d={`M100,120 Q100,${120 + cordPosition / 2} 100,${
+            120 + cordPosition
+          }`}
+          stroke="black"
+          strokeWidth="5"
+          fill="none"
+          strokeDasharray="1,10"
+          strokeLinecap="round"
+        />
+      </svg>
       <div
         ref={cordRef}
         onMouseDown={startDrag}
-        className="border-2 border-black h-4 w-4 rounded-full mt-px cursor-pointer"
+        className="border-2 border-black h-4 w-4 rounded-full mt-24 cursor-pointer bg-black z-50"
       ></div>
     </div>
   );
